@@ -8,6 +8,7 @@ Anforderungen: siehe `SPEZIFIKATION.md`.
 - **+ / −** verstellt den Wert. **Gedrückt halten** zählt fortlaufend (praktisch für Luftdruck und Federrate).
 - Gespeichert wird sofort. Die erste Änderung an einem Tag legt automatisch ein **neues Tages-Setup** an, das die Werte vom letzten Mal übernimmt. Weitere Änderungen am selben Tag aktualisieren dieses Setup.
 - Orange Werte mit Punkt = heute gegenüber dem letzten Setup verändert.
+- **Verlauf** (Uhr-Symbol oben): alle gespeicherten Tage des Bikes, neuestes zuerst. Tippe auf einen Tag, um ihn nachträglich zu ändern. Das ändert nur diesen Tag, die Hauptansicht zeigt weiterhin immer das neueste Setup.
 - Klicks zählen **ab geschlossen** (0 = ganz zu).
 
 ## Backup

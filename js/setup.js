@@ -79,3 +79,26 @@ export function upsert(setups, record) {
   const rest = setups.filter((s) => !(s.bikeId === record.bikeId && s.datum === record.datum));
   return [...rest, record];
 }
+
+/**
+ * Ändert einen Wert eines bestimmten Tageseintrags (auch eines älteren Tages),
+ * ohne einen neuen Eintrag anzulegen. Werte fallen nie unter 0.
+ */
+export function changeEntry(record, key, direction) {
+  const field = FIELDS.find((f) => f.key === key);
+  if (!field) throw new Error(`Unbekanntes Feld: ${key}`);
+  return { ...record, [key]: Math.max(0, (record[key] ?? 0) + direction * field.step) };
+}
+
+/** Schlüssel der Werte, die sich gegenüber dem Vergleichs-Setup unterscheiden. */
+export function changedKeys(setup, prev) {
+  if (!prev) return [];
+  return FIELD_KEYS.filter((k) => (setup[k] ?? 0) !== (prev[k] ?? 0));
+}
+
+/** JJJJ-MM-TT → „Fr, 23.10.2026“ */
+export function formatDateLongDE(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][new Date(y, m - 1, d).getDay()];
+  return `${wd}, ${formatDateDE(iso)}`;
+}

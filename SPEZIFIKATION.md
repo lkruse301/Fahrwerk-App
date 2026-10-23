@@ -53,14 +53,14 @@ Eine Web-App (PWA), die **offline auf dem iPhone** läuft und die Fahrwerkseinst
    - Gibt es für **heute** noch keinen Eintrag für dieses Bike, wird ein **neuer Tageseintrag** angelegt. Er übernimmt alle Werte des letzten Eintrags, dann wird die Änderung angewendet.
    - Gibt es für heute schon einen Eintrag, wird dieser aktualisiert.
 3. Gespeichert wird **sofort** bei jedem Tipp, es gibt keinen Speichern-Button.
-4. Ältere Tage werden dadurch nie verändert. Sie bleiben als Historie erhalten (einsehbar über den Excel-Export).
+4. Ältere Tage werden über die Hauptansicht nie verändert. Sie bleiben im **Verlauf** erhalten und lassen sich dort gezielt nachträglich bearbeiten (siehe Abschnitt 6).
 5. Ein neues Bike startet mit allen Werten auf 0.
 
 ## 6. Bedienung und Oberfläche
 
 ```
 ┌───────────────────────────────┐
-│ [ Bike: Downhill        ▾ ]   │  ← Bike wechseln / anlegen
+│ [ Downhill ▾ ] [Verlauf] [⋯]  │  ← Bike wechseln / Verlauf / Bike-Menü
 │ Setup vom 23.10.2026          │
 │ Klicks ab geschlossen         │
 ├───────────────────────────────┤
@@ -91,6 +91,15 @@ Eine Web-App (PWA), die **offline auf dem iPhone** läuft und die Fahrwerkseinst
 - Dark Mode, hoher Kontrast, gut lesbar in der Sonne
 - Sprache der Oberfläche: Deutsch
 
+### Verlauf (Verzeichnis)
+- Uhr-Symbol oben neben der Bike-Auswahl öffnet den **Verlauf** des gewählten Bikes
+- Liste aller gespeicherten Tage, **neuestes zuerst**. Pro Tag: Wochentag und Datum, Kennzeichnung „Aktuell“ (neuester Eintrag) und „Heute“, Anzahl der gegenüber dem Vortag geänderten Werte („Erstes Setup“ beim ersten Eintrag), Kurzinfo Luftdruck, Tokens, Federrate
+- Tippen auf einen Tag öffnet dessen Setup mit denselben +/−-Zeilen wie die Hauptansicht
+- **Nachträgliches Bearbeiten:** Änderungen dort wirken nur auf genau diesen Tag. Es entsteht kein neuer Eintrag und kein anderer Tag wird verändert. Gegenüber dem vorherigen Tag geänderte Werte sind markiert.
+- Gespeichert wird sofort; „‹ Zurück“ führt vom Tag zum Verlauf und vom Verlauf zur Hauptansicht
+- Die Hauptansicht zeigt weiterhin immer das neueste Setup. Wird der neueste Tag im Verlauf bearbeitet, zeigt die Hauptansicht danach diese Werte.
+- Der Verlauf läuft nur in der App; das Excel-Backup wird weiterhin nur bei Bedarf über den Button erstellt
+
 ### Bike-Verwaltung
 - Auswahlliste oben: zwischen Bikes wechseln
 - In der Liste: „+ Neues Bike“ (Name eingeben)
@@ -118,6 +127,9 @@ Eine Web-App (PWA), die **offline auf dem iPhone** läuft und die Fahrwerkseinst
 - [ ] Jeder Wert lässt sich mit +/− verstellen und wird zwischen den Buttons angezeigt
 - [ ] Erste Änderung an einem neuen Tag erzeugt einen neuen Tageseintrag mit den Vorwerten; weitere Änderungen am selben Tag aktualisieren diesen Eintrag
 - [ ] Werte fallen nie unter 0; Luftdruck in 1-psi-, Federrate in 25-lbs-Schritten
+- [ ] Der Verlauf listet alle Tage des gewählten Bikes, neuestes zuerst
+- [ ] Ein älterer Tag lässt sich im Verlauf bearbeiten, ohne dass ein neuer Eintrag entsteht oder andere Tage sich ändern
+- [ ] Die Hauptansicht zeigt immer das neueste Setup
 - [ ] Daten bleiben nach dem Schließen der App erhalten
 - [ ] Excel-Export enthält alle Tage aller Bikes und lässt sich in Excel/Numbers öffnen
 - [ ] Ein exportiertes Backup lässt sich wieder importieren und ergibt denselben Datenstand

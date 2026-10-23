@@ -1,13 +1,15 @@
 import * as db from './db.js';
 import {
-  FIELDS, todayLocal, formatDateDE, emptyValues, latestSetup, previousSetup, applyChange, upsert,
+  FIELDS, todayLocal, formatDateDE, formatDateLongDE, emptyValues, latestSetup, previousSetup,
+  setupsForBike, applyChange, changeEntry, changedKeys, upsert,
 } from './setup.js';
 import { buildWorkbook, parseWorkbook, backupFileName } from './excel.js';
 
 const NEW_BIKE = '__new__';
 const $ = (id) => document.getElementById(id);
 
-const state = { bikes: [], setups: [], bikeId: null };
+// view: 'main' (neuestes Setup) | 'history' (Verlauf) | 'day' (einzelner Tag bearbeiten)
+const state = { bikes: [], setups: [], bikeId: null, view: 'main', editDate: null };
 let writeQueue = Promise.resolve();
 
 /* ---------- Hilfen ---------- */
@@ -18,6 +20,10 @@ function uuid() {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 }
 
 let toastTimer;
@@ -71,34 +77,64 @@ function nameTaken(name, exceptId = null) {
   return state.bikes.some((b) => b.id !== exceptId && b.name.toLowerCase() === name.toLowerCase());
 }
 
-/* ---------- Oberfläche aufbauen ---------- */
+function currentBike() {
+  return state.bikes.find((b) => b.id === state.bikeId) ?? null;
+}
 
-const rowEls = {};
+function findEntry(bikeId, datum) {
+  return state.setups.find((s) => s.bikeId === bikeId && s.datum === datum) ?? null;
+}
 
-function buildRows() {
-  FIELDS.forEach((f) => {
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.dataset.key = f.key;
-    row.innerHTML = `
-      <button class="step" data-dir="-1" aria-label="${f.label} verringern">−</button>
-      <div class="readout">
-        <span class="label">${f.label}</span>
-        <span><span class="value">0</span>${f.unit ? `<span class="unit">${f.unit}</span>` : ''}</span>
-      </div>
-      <button class="step" data-dir="1" aria-label="${f.label} erhöhen">+</button>`;
-    document.querySelector(`.rows[data-group="${f.group}"]`).appendChild(row);
-    rowEls[f.key] = {
-      row,
-      value: row.querySelector('.value'),
-      minus: row.querySelector('[data-dir="-1"]'),
-    };
-    row.querySelectorAll('.step').forEach((btn) => attachRepeat(btn, f.key, Number(btn.dataset.dir)));
+function save(rec) {
+  state.setups = upsert(state.setups, rec);
+  writeQueue = writeQueue.then(() => db.putSetup(rec)).catch(() => toast('Speichern fehlgeschlagen'));
+}
+
+/* ---------- Einstellungs-Zeilen (Hauptansicht und Tagesansicht) ---------- */
+
+/** Baut Gabel- und Dämpfer-Block mit +/−-Zeilen in root. onStep(key, dir) → true, wenn geändert. */
+function buildPanel(root, onStep) {
+  const els = {};
+  [['gabel', 'Gabel'], ['daempfer', 'Dämpfer']].forEach(([group, title]) => {
+    const sec = document.createElement('section');
+    sec.className = 'group';
+    sec.innerHTML = `<h2>${title}</h2><div class="rows"></div>`;
+    const rows = sec.querySelector('.rows');
+    FIELDS.filter((f) => f.group === group).forEach((f) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.dataset.key = f.key;
+      row.innerHTML = `
+        <button class="step" data-dir="-1" aria-label="${title} ${f.label} verringern">−</button>
+        <div class="readout">
+          <span class="label">${f.label}</span>
+          <span><span class="value">0</span>${f.unit ? `<span class="unit">${f.unit}</span>` : ''}</span>
+        </div>
+        <button class="step" data-dir="1" aria-label="${title} ${f.label} erhöhen">+</button>`;
+      rows.appendChild(row);
+      els[f.key] = { row, value: row.querySelector('.value'), minus: row.querySelector('[data-dir="-1"]') };
+      row.querySelectorAll('.step').forEach((btn) => {
+        const dir = Number(btn.dataset.dir);
+        attachRepeat(btn, () => {
+          const changed = onStep(f.key, dir);
+          if (changed) bump(els[f.key].value);
+          return changed;
+        });
+      });
+    });
+    root.appendChild(sec);
   });
+  return els;
+}
+
+function bump(el) {
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
 }
 
 /** Tippen = ein Schritt, gedrückt halten = fortlaufend (wird schneller). */
-function attachRepeat(btn, key, dir) {
+function attachRepeat(btn, doStep) {
   let delay = null;
   let timer = null;
   let count = 0;
@@ -110,7 +146,7 @@ function attachRepeat(btn, key, dir) {
     btn.classList.remove('pressed');
   };
   const tick = () => {
-    if (!step(key, dir)) return stop();
+    if (!doStep()) return stop();
     count += 1;
     timer = setTimeout(tick, count > 30 ? 20 : count > 12 ? 40 : 90);
   };
@@ -121,49 +157,90 @@ function attachRepeat(btn, key, dir) {
     btn.setPointerCapture?.(e.pointerId);
     btn.classList.add('pressed');
     count = 0;
-    step(key, dir);
+    doStep();
     delay = setTimeout(tick, 420);
   });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach((ev) => btn.addEventListener(ev, stop));
   btn.addEventListener('contextmenu', (e) => e.preventDefault());
   // Tastatur (Enter/Leertaste) löst nur "click" ohne Zeiger aus
   btn.addEventListener('click', (e) => {
-    if (e.detail === 0) step(key, dir);
+    if (e.detail === 0) doStep();
   });
 }
 
-/** Führt einen Schritt aus. Gibt false zurück, wenn nichts mehr geht (z. B. Wert schon 0). */
-function step(key, dir) {
+function renderPanel(els, values, prev) {
+  const changed = new Set(changedKeys(values, prev));
+  FIELDS.forEach((f) => {
+    const el = els[f.key];
+    const v = values[f.key] ?? 0;
+    el.value.textContent = v;
+    el.minus.disabled = v <= 0;
+    el.row.classList.toggle('changed', changed.has(f.key));
+  });
+}
+
+let mainEls;
+let dayEls;
+
+/** Hauptansicht: Änderung am neuesten Setup, an einem neuen Tag entsteht ein neuer Tageseintrag. */
+function stepMain(key, dir) {
   if (!state.bikeId) return false;
   const current = latestSetup(state.setups, state.bikeId);
   if (dir < 0 && (current ? current[key] : 0) <= 0) return false;
-  const rec = applyChange(state.setups, state.bikeId, key, dir, todayLocal());
-  state.setups = upsert(state.setups, rec);
-  writeQueue = writeQueue
-    .then(() => db.putSetup(rec))
-    .catch(() => toast('Speichern fehlgeschlagen'));
+  save(applyChange(state.setups, state.bikeId, key, dir, todayLocal()));
   render();
-  const v = rowEls[key].value;
-  v.classList.remove('bump');
-  void v.offsetWidth;
-  v.classList.add('bump');
   return true;
 }
+
+/** Tagesansicht: ändert nur den gewählten Tag, es entsteht kein neuer Eintrag. */
+function stepDay(key, dir) {
+  const rec = findEntry(state.bikeId, state.editDate);
+  if (!rec) return false;
+  if (dir < 0 && (rec[key] ?? 0) <= 0) return false;
+  save(changeEntry(rec, key, dir));
+  render();
+  return true;
+}
+
+/* ---------- Darstellung ---------- */
 
 function renderBikeSelect() {
   const sel = $('bikeSelect');
   sel.innerHTML = '';
   state.bikes.forEach((b) => sel.add(new Option(b.name, b.id)));
   sel.add(new Option('＋ Neues Bike …', NEW_BIKE));
-  if (state.bikeId) sel.value = state.bikeId;
-  else sel.value = '';
+  sel.value = state.bikeId ?? '';
+}
+
+function showView(view) {
+  state.view = view;
+  render();
+  window.scrollTo(0, 0);
 }
 
 function render() {
+  // Gewählter Tag existiert nicht mehr (z. B. nach Wiederherstellung) → zurück zum Verlauf
+  if (state.view === 'day' && !findEntry(state.bikeId, state.editDate)) state.view = 'history';
+  if (state.view !== 'main' && !state.bikeId) state.view = 'main';
+
+  const v = state.view;
+  $('mainHeader').hidden = v !== 'main';
+  $('subHeader').hidden = v === 'main';
+  $('mainView').hidden = v !== 'main';
+  $('historyView').hidden = v !== 'history';
+  $('dayView').hidden = v !== 'day';
+
+  if (v === 'main') renderMain();
+  else if (v === 'history') renderHistory();
+  else renderDay();
+}
+
+function renderMain() {
   const hasBike = !!state.bikeId;
   $('empty').hidden = hasBike;
   $('setup').hidden = !hasBike;
   $('bikeMenu').disabled = !hasBike;
+  $('historyBtn').disabled = !hasBike;
   $('bikeSelect').parentElement.style.visibility = state.bikes.length ? 'visible' : 'hidden';
 
   if (!hasBike) {
@@ -174,20 +251,58 @@ function render() {
 
   const today = todayLocal();
   const cur = latestSetup(state.setups, state.bikeId);
-  const values = cur ?? { ...emptyValues() };
-  const isToday = cur && cur.datum === today;
+  const isToday = !!cur && cur.datum === today;
   const prev = isToday ? previousSetup(state.setups, state.bikeId, today) : null;
 
   $('setupDate').textContent = cur ? `Setup vom ${formatDateDE(cur.datum)}` : 'Noch kein Setup gespeichert';
   $('todayChip').hidden = !isToday;
+  renderPanel(mainEls, cur ?? emptyValues(), prev);
+}
 
-  FIELDS.forEach((f) => {
-    const el = rowEls[f.key];
-    const v = values[f.key] ?? 0;
-    el.value.textContent = v;
-    el.minus.disabled = v <= 0;
-    el.row.classList.toggle('changed', !!prev && prev[f.key] !== v);
-  });
+function summary(s, prev) {
+  if (!prev) return 'Erstes Setup';
+  const n = changedKeys(s, prev).length;
+  if (n === 0) return 'Keine Änderung';
+  return n === 1 ? '1 Wert geändert' : `${n} Werte geändert`;
+}
+
+function renderHistory() {
+  const bike = currentBike();
+  $('subTitle').textContent = 'Verlauf';
+  $('subStatus').textContent = bike ? bike.name : '';
+
+  const list = setupsForBike(state.setups, state.bikeId); // neuestes zuerst
+  const today = todayLocal();
+  $('historyEmpty').hidden = list.length > 0;
+  $('historyList').innerHTML = list
+    .map((s, i) => {
+      const prev = list[i + 1] ?? null;
+      const chips = [
+        i === 0 ? '<span class="chip">Aktuell</span>' : '',
+        s.datum === today ? '<span class="chip chip-muted">Heute</span>' : '',
+      ].join('');
+      return `
+      <li>
+        <button class="history-item" data-date="${esc(s.datum)}">
+          <span class="hi-main">
+            <span class="hi-date">${formatDateLongDE(s.datum)} ${chips}</span>
+            <span class="hi-sum">${summary(s, prev)}</span>
+            <span class="hi-vals">Gabel ${s.gabel_luftdruck} psi · ${s.gabel_tokens} Tokens · Dämpfer ${s.daempfer_federrate} lbs</span>
+          </span>
+          <span class="hi-chev" aria-hidden="true">›</span>
+        </button>
+      </li>`;
+    })
+    .join('');
+}
+
+function renderDay() {
+  const rec = findEntry(state.bikeId, state.editDate);
+  const prev = previousSetup(state.setups, state.bikeId, state.editDate);
+  const isLatest = latestSetup(state.setups, state.bikeId)?.datum === state.editDate;
+  $('subTitle').textContent = `Setup vom ${formatDateDE(state.editDate)}`;
+  $('subStatus').textContent = `${currentBike()?.name ?? ''} · Änderungen gelten nur für diesen Tag${isLatest ? ' (aktuelles Setup)' : ''}`;
+  renderPanel(dayEls, rec, prev);
 }
 
 async function selectBike(id) {
@@ -215,7 +330,7 @@ async function createBike() {
 }
 
 async function bikeMenu() {
-  const bike = state.bikes.find((b) => b.id === state.bikeId);
+  const bike = currentBike();
   if (!bike) return;
   const choice = await dialog({
     title: bike.name,
@@ -303,6 +418,7 @@ async function importBackup(file) {
   await db.replaceAll(data.bikes, data.setups);
   state.bikes = data.bikes;
   state.setups = data.setups;
+  state.view = 'main';
   const keep = state.bikes.some((b) => b.id === state.bikeId) ? state.bikeId : state.bikes[0]?.id ?? null;
   await selectBike(keep);
   toast('Backup wiederhergestellt');
@@ -311,7 +427,8 @@ async function importBackup(file) {
 /* ---------- Start ---------- */
 
 async function init() {
-  buildRows();
+  mainEls = buildPanel($('setup'), stepMain);
+  dayEls = buildPanel($('daySetup'), stepDay);
   db.requestPersistence();
   [state.bikes, state.setups] = await Promise.all([db.getBikes(), db.getSetups()]);
   state.bikes.sort((a, b) => a.name.localeCompare(b.name, 'de'));
@@ -330,6 +447,14 @@ async function init() {
   });
   $('firstBike').addEventListener('click', createBike);
   $('bikeMenu').addEventListener('click', bikeMenu);
+  $('historyBtn').addEventListener('click', () => showView('history'));
+  $('backBtn').addEventListener('click', () => showView(state.view === 'day' ? 'history' : 'main'));
+  $('historyList').addEventListener('click', (e) => {
+    const item = e.target.closest('.history-item');
+    if (!item) return;
+    state.editDate = item.dataset.date;
+    showView('day');
+  });
   $('exportBtn').addEventListener('click', exportBackup);
   $('importBtn').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', async (e) => {
