@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0e10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fahrwerk">
+  <title>Fahrwerk</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="vendor/xlsx.full.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="bike-bar">
+      <label class="bike-select">
+        <span class="sr">Bike auswählen</span>
+        <select id="bikeSelect" aria-label="Bike auswählen"></select>
+        <span class="chev" aria-hidden="true">▾</span>
+      </label>
+      <button id="bikeMenu" class="icon-btn" aria-label="Bike umbenennen oder löschen">⋯</button>
+    </div>
+    <div class="status">
+      <span id="setupDate">–</span>
+      <span id="todayChip" class="chip" hidden>Heute</span>
+      <span class="hint">Klicks ab geschlossen (0 = zu)</span>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="empty" class="empty" hidden>
+      <p>Noch kein Bike angelegt.</p>
+      <button id="firstBike" class="primary">Erstes Bike anlegen</button>
+    </section>
+
+    <div id="setup" hidden>
+      <section class="group" aria-labelledby="h-gabel">
+        <h2 id="h-gabel">Gabel</h2>
+        <div class="rows" data-group="gabel"></div>
+      </section>
+      <section class="group" aria-labelledby="h-daempfer">
+        <h2 id="h-daempfer">Dämpfer</h2>
+        <div class="rows" data-group="daempfer"></div>
+      </section>
+    </div>
+
+    <section class="backup">
+      <button id="exportBtn" class="secondary">Backup als Excel</button>
+      <button id="importBtn" class="secondary">Aus Excel wiederherstellen</button>
+      <input id="importFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+    </section>
+  </main>
+
+  <dialog id="dlg">
+    <form method="dialog" class="dlg-body">
+      <h3 id="dlgTitle"></h3>
+      <p id="dlgMsg"></p>
+      <input id="dlgInput" type="text" autocomplete="off" maxlength="40">
+      <div id="dlgExtra" class="dlg-extra"></div>
+      <div class="dlg-actions">
+        <button value="cancel" id="dlgCancel" class="secondary">Abbrechen</button>
+        <button value="ok" id="dlgOk" class="primary">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
