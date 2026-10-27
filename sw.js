@@ -1,6 +1,6 @@
 // Service Worker: alle App-Dateien offline verfügbar machen.
 // Bei jeder Änderung an der App die Versionsnummer erhöhen.
-const CACHE = 'fahrwerk-v2';
+const CACHE = 'fahrwerk-v3';
 
 const ASSETS = [
   './',

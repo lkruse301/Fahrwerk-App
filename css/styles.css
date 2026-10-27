@@ -347,3 +347,19 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 .hi-sum { font-size: 15px; font-weight: 600; color: var(--accent); }
 .hi-vals { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hi-chev { font-size: 28px; color: var(--muted); flex: none; }
+
+/* Tag löschen (Tagesansicht) */
+.day-actions { display: grid; margin-top: 28px; }
+
+.danger-outline {
+  height: 56px;
+  padding: 0 20px;
+  border-radius: var(--radius);
+  font-size: 17px;
+  font-weight: 700;
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.danger-outline:active { background: var(--danger); color: #fff; }

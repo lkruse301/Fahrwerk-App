@@ -96,6 +96,7 @@ Eine Web-App (PWA), die **offline auf dem iPhone** läuft und die Fahrwerkseinst
 - Liste aller gespeicherten Tage, **neuestes zuerst**. Pro Tag: Wochentag und Datum, Kennzeichnung „Aktuell“ (neuester Eintrag) und „Heute“, Anzahl der gegenüber dem Vortag geänderten Werte („Erstes Setup“ beim ersten Eintrag), Kurzinfo Luftdruck, Tokens, Federrate
 - Tippen auf einen Tag öffnet dessen Setup mit denselben +/−-Zeilen wie die Hauptansicht
 - **Nachträgliches Bearbeiten:** Änderungen dort wirken nur auf genau diesen Tag. Es entsteht kein neuer Eintrag und kein anderer Tag wird verändert. Gegenüber dem vorherigen Tag geänderte Werte sind markiert.
+- **Tag löschen:** In der Tagesansicht unten „Diesen Tag löschen“. Nur mit Bestätigung; entfernt genau diesen Tageseintrag, andere Tage bleiben unverändert. Danach zurück zum Verlauf. Wird der neueste Tag gelöscht, zeigt die Hauptansicht das nächstältere Setup.
 - Gespeichert wird sofort; „‹ Zurück“ führt vom Tag zum Verlauf und vom Verlauf zur Hauptansicht
 - Die Hauptansicht zeigt weiterhin immer das neueste Setup. Wird der neueste Tag im Verlauf bearbeitet, zeigt die Hauptansicht danach diese Werte.
 - Der Verlauf läuft nur in der App; das Excel-Backup wird weiterhin nur bei Bedarf über den Button erstellt

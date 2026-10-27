@@ -312,6 +312,34 @@ async function selectBike(id) {
   await db.setMeta('lastBikeId', id);
 }
 
+/* ---------- Tag löschen ---------- */
+
+async function deleteDay() {
+  const datum = state.editDate;
+  if (!findEntry(state.bikeId, datum)) return;
+  const isLatest = latestSetup(state.setups, state.bikeId)?.datum === datum;
+  const prev = previousSetup(state.setups, state.bikeId, datum);
+  let message = 'Der Eintrag wird endgültig gelöscht. Andere Tage bleiben unverändert.';
+  if (isLatest) {
+    message += prev
+      ? ` Die Hauptansicht zeigt danach das Setup vom ${formatDateDE(prev.datum)}.`
+      : ' Für dieses Bike ist danach kein Setup mehr gespeichert.';
+  }
+  const ok = await dialog({
+    title: `Setup vom ${formatDateDE(datum)} löschen?`,
+    message,
+    okText: 'Löschen',
+    danger: true,
+  });
+  if (ok !== 'ok') return;
+  const bikeId = state.bikeId;
+  state.setups = state.setups.filter((s) => !(s.bikeId === bikeId && s.datum === datum));
+  writeQueue = writeQueue.then(() => db.deleteSetup(bikeId, datum)).catch(() => toast('Löschen fehlgeschlagen'));
+  await writeQueue;
+  showView('history');
+  toast('Tag gelöscht');
+}
+
 /* ---------- Bikes verwalten ---------- */
 
 async function createBike() {
@@ -455,6 +483,7 @@ async function init() {
     state.editDate = item.dataset.date;
     showView('day');
   });
+  $('deleteDayBtn').addEventListener('click', deleteDay);
   $('exportBtn').addEventListener('click', exportBackup);
   $('importBtn').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', async (e) => {

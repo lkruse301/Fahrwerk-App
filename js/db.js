@@ -59,6 +59,14 @@ export async function putSetup(setup) {
   return done(tx);
 }
 
+/** Löscht genau einen Tageseintrag eines Bikes. */
+export async function deleteSetup(bikeId, datum) {
+  const db = await open();
+  const tx = db.transaction('setups', 'readwrite');
+  tx.objectStore('setups').delete([bikeId, datum]);
+  return done(tx);
+}
+
 /** Löscht ein Bike samt aller Setups. */
 export async function deleteBike(bikeId) {
   const db = await open();
